@@ -1,112 +1,177 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:english_words/english_words.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(new MaterialApp(
+  theme: ThemeData(
+      appBarTheme: AppBarTheme(
+        color: Colors.red,
+      )),
+  home: new MyApp(),
+));
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
+
+  @override
+  void initState() {
+    super.initState();
+    var initializationSettingsAndroid =
+    AndroidInitializationSettings('flutter_devs');
+    var initializationSettingsIOs = IOSInitializationSettings();
+    var initSetttings = InitializationSettings(
+        initializationSettingsAndroid, initializationSettingsIOs);
+
+    flutterLocalNotificationsPlugin.initialize(initSetttings,
+        onSelectNotification: onSelectNotification);
+  }
+
+  Future onSelectNotification(String payload) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) {
+      return NewScreen(
+        payload: payload,
+      );
+    }));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Startup Name Generator',
-      theme: ThemeData(
-        primaryColor: Colors.white,
+    return Scaffold(
+      appBar: new AppBar(
+        backgroundColor: Colors.blue,
+        title: new Text('Flutter notification demo'),
       ),
-      home: RandomWords(),
+      body: new Center(
+        child: Column(
+          children: <Widget>[
+            RaisedButton(
+              onPressed: showNotification,
+              child: new Text(
+                'showNotification',
+              ),
+            ),
+            RaisedButton(
+              onPressed: cancelNotification,
+              child: new Text(
+                'cancelNotification',
+              ),
+            ),
+            RaisedButton(
+              onPressed: scheduleNotification,
+              child: new Text(
+                'scheduleNotification',
+              ),
+            ),
+            RaisedButton(
+              onPressed: showBigPictureNotification,
+              child: new Text(
+                'showBigPictureNotification',
+              ),
+            ),
+            RaisedButton(
+              onPressed: showNotificationMediaStyle,
+              child: new Text(
+                'showNotificationMediaStyle',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> showNotificationMediaStyle() async {
+    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'media channel id',
+      'media channel name',
+      'media channel description',
+      color: Colors.red,
+      enableLights: true,
+      largeIcon: DrawableResourceAndroidBitmap("flutter_devs"),
+      styleInformation: MediaStyleInformation(),
+    );
+    var platformChannelSpecifics =
+    NotificationDetails(androidPlatformChannelSpecifics, null);
+    await flutterLocalNotificationsPlugin.show(
+        0, 'notification title', 'notification body', platformChannelSpecifics);
+  }
+
+  Future<void> showBigPictureNotification() async {
+    var bigPictureStyleInformation = BigPictureStyleInformation(
+        DrawableResourceAndroidBitmap("flutter_devs"),
+        largeIcon: DrawableResourceAndroidBitmap("flutter_devs"),
+        contentTitle: 'flutter devs',
+        htmlFormatContentTitle: true,
+        summaryText: 'summaryText',
+        htmlFormatSummaryText: true);
+    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
+        'big text channel id',
+        'big text channel name',
+        'big text channel description',
+        styleInformation: bigPictureStyleInformation);
+    var platformChannelSpecifics =
+    NotificationDetails(androidPlatformChannelSpecifics, null);
+    await flutterLocalNotificationsPlugin.show(
+        0, 'big text title', 'silent body', platformChannelSpecifics,
+        payload: "big image notifications");
+  }
+
+  Future<void> scheduleNotification() async {
+    var scheduledNotificationDateTime =
+    DateTime.now().add(Duration(seconds: 5));
+    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'channel id',
+      'channel name',
+      'channel description',
+      icon: 'flutter_devs',
+      largeIcon: DrawableResourceAndroidBitmap('flutter_devs'),
+    );
+    var iOSPlatformChannelSpecifics = IOSNotificationDetails();
+    var platformChannelSpecifics = NotificationDetails(
+        androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.schedule(
+        0,
+        'scheduled title',
+        'scheduled body',
+        scheduledNotificationDateTime,
+        platformChannelSpecifics);
+  }
+
+  Future<void> cancelNotification() async {
+    await flutterLocalNotificationsPlugin.cancel(0);
+  }
+
+  showNotification() async {
+    var android = new AndroidNotificationDetails(
+        'id', 'channel ', 'description',
+        priority: Priority.High, importance: Importance.Max);
+    var iOS = new IOSNotificationDetails();
+    var platform = new NotificationDetails(android, iOS);
+    await flutterLocalNotificationsPlugin.show(
+        0, 'Flutter devs', 'Flutter Local Notification Demo', platform,
+        payload: 'Welcome to the Local Notification demo ');
   }
 }
 
-class RandomWords extends StatefulWidget {
-  @override
-  _RandomWordsState createState() => _RandomWordsState();
-}
+class NewScreen extends StatelessWidget {
+  String payload;
 
-class _RandomWordsState extends State<RandomWords> {
-  final _suggestions = <WordPair>[];
-  final _saved = Set<WordPair>();
-  final _biggerFont = TextStyle(fontSize: 18.0);
+  NewScreen({
+    @required this.payload,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Startup Name Generator'),
-        actions: [
-          IconButton(icon: Icon(Icons.list), onPressed: _pushSaved,)
-        ],
+        title: Text(payload),
       ),
-      body: _buildSuggestions(),
-    );
-    //return Container();
-  }
-
-  void _pushSaved() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        // NEW lines from here...
-        builder: (BuildContext context) {
-          final tiles = _saved.map(
-                (WordPair pair) {
-              return ListTile(
-                title: Text(
-                  pair.asPascalCase,
-                  style: _biggerFont,
-                ),
-              );
-            },
-          );
-          final divided = ListTile.divideTiles(
-            context: context,
-            tiles: tiles,
-          ).toList();
-
-          return Scaffold(
-            appBar: AppBar(
-              title: Text('Saved Suggestions'),
-            ),
-            body: ListView(children: divided),
-          );
-        }, // ...to here.
-      ),
-    );
-  }
-
-  Widget _buildSuggestions() {
-    return ListView.builder(
-        padding: EdgeInsets.all(16.0),
-        itemBuilder: /*1*/ (context, i) {
-          if (i.isOdd) return Divider(); /*2*/
-
-          final index = i ~/ 2; /*3*/
-          if (index >= _suggestions.length) {
-            _suggestions.addAll(generateWordPairs().take(10)); /*4*/
-          }
-          return _buildRow(_suggestions[index]);
-        });
-  }
-
-  Widget _buildRow(WordPair pair) {
-    final alreadySaved = _saved.contains(pair);
-    return ListTile(
-      title: Text(
-        pair.asPascalCase,
-        style: _biggerFont,
-      ),
-      trailing: Icon(
-        alreadySaved ? Icons.favorite : Icons.favorite_border,
-        color: alreadySaved ? Colors.red : null,
-      ),
-      onTap: () {
-        setState(() {
-          if (alreadySaved) {
-            _saved.remove(pair);
-          } else {
-            _saved.add(pair);
-          }
-        });
-      },
     );
   }
 }
-
