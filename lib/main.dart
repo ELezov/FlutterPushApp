@@ -1,14 +1,18 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'search_screen.dart';
+
+import'dart:io' show Platform;
 
 void main() => runApp(new MaterialApp(
   theme: ThemeData(
       appBarTheme: AppBarTheme(
         color: Colors.red,
       )),
-  home: new MyApp(),
-));
+      home: MyApp(), //SearchScreen(title: 'Dictionary'),
+  )
+);
 
 class MyApp extends StatefulWidget {
   @override
@@ -22,22 +26,50 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    var initializationSettingsAndroid =
-    AndroidInitializationSettings('flutter_devs');
-    var initializationSettingsIOs = IOSInitializationSettings();
-    var initSetttings = InitializationSettings(
-        initializationSettingsAndroid, initializationSettingsIOs);
 
-    flutterLocalNotificationsPlugin.initialize(initSetttings,
+    if (Platform.isIOS) {
+        requestIOSPermission();
+    }
+
+    initializePlatformSpecifics();
+    // var initializationSettingsAndroid =
+    // AndroidInitializationSettings('flutter_devs');
+    // var initializationSettingsIOs = IOSInitializationSettings();
+    // var initSetttings = InitializationSettings(
+    //     initializationSettingsAndroid, initializationSettingsIOs);
+    //
+    // flutterLocalNotificationsPlugin.initialize(initSetttings,
+    //     onSelectNotification: onSelectNotification);
+  }
+
+  void requestIOSPermission() {
+    flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+        .requestPermissions(alert: false, badge: true, sound: true);
+  }
+
+  void initializePlatformSpecifics() {
+    var initializationSettingsAndroid = AndroidInitializationSettings('flutter_devs');
+    var initializationSettingsIOS = IOSInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: false,
+      onDidReceiveLocalNotification: (id, title, body, payload) async {
+        // your call back to the UI
+      },
+    );
+    var initializationSettings = InitializationSettings(initializationSettingsAndroid, initializationSettingsIOS);
+
+    /*await*/
+    flutterLocalNotificationsPlugin.initialize(initializationSettings,
         onSelectNotification: onSelectNotification);
   }
 
   Future onSelectNotification(String payload) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) {
-      return NewScreen(
-        payload: payload,
-      );
-    }));
+    // Navigator.of(context).push(MaterialPageRoute(builder: (_) {
+    //   return NewScreen(
+    //     payload: payload,
+    //   );
+    // }));
   }
 
   @override
@@ -91,15 +123,23 @@ class _MyAppState extends State<MyApp> {
       'media channel id',
       'media channel name',
       'media channel description',
+      importance: Importance.Max, // to show the notification as popup on the top of the screen.
+      priority: Priority.High,// to show the notification as popup on the top of the screen.
+      playSound: true,
       color: Colors.red,
       enableLights: true,
       largeIcon: DrawableResourceAndroidBitmap("flutter_devs"),
       styleInformation: MediaStyleInformation(),
     );
-    var platformChannelSpecifics =
-    NotificationDetails(androidPlatformChannelSpecifics, null);
+
+    var iOSChannelSpecifics = IOSNotificationDetails();
+    var platformChannelSpecifics = NotificationDetails(androidPlatformChannelSpecifics, iOSChannelSpecifics);
+
     await flutterLocalNotificationsPlugin.show(
-        0, 'notification title', 'notification body', platformChannelSpecifics);
+        0, // Notification ID
+        'notification title',
+        'notification body',
+        platformChannelSpecifics);
   }
 
   Future<void> showBigPictureNotification() async {
@@ -122,7 +162,7 @@ class _MyAppState extends State<MyApp> {
         payload: "big image notifications");
   }
 
-  Future<void> scheduleNotification() async {
+  /*Future<void> scheduleNotification() async {
     var scheduledNotificationDateTime =
     DateTime.now().add(Duration(seconds: 5));
     var androidPlatformChannelSpecifics = AndroidNotificationDetails(
@@ -141,6 +181,43 @@ class _MyAppState extends State<MyApp> {
         'scheduled body',
         scheduledNotificationDateTime,
         platformChannelSpecifics);
+  }*/
+
+  Future<void> scheduleNotification() async {
+    var scheduleNotificationDateTime = DateTime.now().add(Duration(seconds: 5));
+    var androidChannelSpecifics = AndroidNotificationDetails(
+      'CHANNEL_ID 1',
+      'CHANNEL_NAME 1',
+      "CHANNEL_DESCRIPTION 1",
+      icon: 'flutter_devs',
+      //sound: RawResourceAndroidNotificationSound('my_sound'),
+      largeIcon: DrawableResourceAndroidBitmap('flutter_devs'),
+      enableLights: true,
+      color: const Color.fromARGB(255, 255, 0, 0),
+      ledColor: const Color.fromARGB(255, 255, 0, 0),
+      ledOnMs: 1000,
+      ledOffMs: 500,
+      importance: Importance.Max,
+      priority: Priority.High,
+      playSound: true,
+      timeoutAfter: 5000,
+      styleInformation: DefaultStyleInformation(true, true),
+    );
+    var iosChannelSpecifics = IOSNotificationDetails(
+      //sound: 'my_sound.aiff',
+    );
+    var platformChannelSpecifics = NotificationDetails(
+      androidChannelSpecifics,
+      iosChannelSpecifics,
+    );
+    await flutterLocalNotificationsPlugin.schedule(
+      0,
+      'Test Title',
+      'Test Body',
+      scheduleNotificationDateTime,
+      platformChannelSpecifics,
+      payload: 'Test Payload',
+    );
   }
 
   Future<void> cancelNotification() async {
@@ -149,8 +226,12 @@ class _MyAppState extends State<MyApp> {
 
   showNotification() async {
     var android = new AndroidNotificationDetails(
-        'id', 'channel ', 'description',
-        priority: Priority.High, importance: Importance.Max);
+        'id',
+        'channel ',
+        'description',
+        priority: Priority.High,
+        importance: Importance.Max,
+    timeoutAfter: 1000);
     var iOS = new IOSNotificationDetails();
     var platform = new NotificationDetails(android, iOS);
     await flutterLocalNotificationsPlugin.show(
